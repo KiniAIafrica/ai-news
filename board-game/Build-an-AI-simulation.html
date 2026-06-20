@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Build an AI — concept simulation</title>
+  <style>
+:root {
+  --bg: #0f172a; --panel: #1e293b; --panel2: #273449; --ink: #e2e8f0;
+  --muted: #94a3b8; --line: #334155; --accent: #db2777;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: radial-gradient(1200px 600px at 70% -10%, #1e293b, var(--bg)); color: var(--ink);
+  min-height: 100vh;
+}
+.hidden { display: none !important; }
+header { padding: 18px 22px; border-bottom: 1px solid var(--line); }
+header h1 { margin: 0; font-size: 20px; }
+header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+.wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
+
+/* setup */
+#setup { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+#setup h2 { margin: 0 0 14px; }
+.field { margin: 12px 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.field label { min-width: 190px; color: var(--muted); }
+select, button { font: inherit; }
+select { background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.btn { background: var(--accent); color: white; border: 0; padding: 10px 16px; border-radius: 9px; cursor: pointer; font-weight: 600; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.ghost { background: var(--panel2); border: 1px solid var(--line); color: var(--ink); }
+
+/* board */
+#board { display: flex; align-items: stretch; gap: 6px; flex-wrap: wrap; margin: 6px 0 18px; }
+.station {
+  flex: 1 1 120px; min-width: 120px; background: var(--panel); border: 2px solid var(--line);
+  border-radius: 12px; padding: 10px; min-height: 92px;
+}
+.station-h { font-size: 12.5px; font-weight: 700; line-height: 1.25; }
+.tokens { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+.token {
+  width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center;
+  justify-content: center; color: #fff; font-size: 12px; box-shadow: 0 0 0 2px rgba(255,255,255,.15);
+}
+.arrow { align-self: center; color: var(--muted); font-size: 18px; }
+
+/* players */
+#players { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.pcard { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.pcard.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(219,39,119,.25); }
+.pcard.dead { opacity: .5; }
+.pcard.won { border-color: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,.3); }
+.pcard-h { display: flex; align-items: center; gap: 8px; }
+.dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.tag { font-size: 10.5px; background: var(--panel2); padding: 2px 7px; border-radius: 999px; color: var(--muted); text-transform: capitalize; }
+.tag.you { background: var(--accent); color: #fff; }
+.cat { font-size: 12px; color: var(--muted); margin: 4px 0; }
+.stats { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; font-weight: 600; margin: 6px 0; }
+.stage { font-size: 12.5px; color: var(--muted); }
+.risks { margin-top: 6px; font-size: 11.5px; color: #fca5a5; }
+
+/* controls */
+.controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+#turnInfo { color: var(--muted); font-size: 13px; }
+.check { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+
+/* decision */
+#decision { background: var(--panel); border: 1px solid var(--accent); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+.decision-h { font-weight: 700; margin-bottom: 12px; }
+.opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.opt {
+  text-align: left; background: var(--panel2); border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px; cursor: pointer; color: var(--ink); transition: transform .08s, border-color .08s;
+}
+.opt:hover { transform: translateY(-2px); border-color: var(--accent); }
+.opt-t { font-weight: 700; margin-bottom: 6px; }
+.opt-stats { font-size: 12px; color: #cbd5e1; margin-bottom: 8px; }
+.opt-b { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.opt-qr { margin-top: 8px; font-size: 10.5px; color: #64748b; }
+
+/* log */
+#log { background: #0b1220; border: 1px solid var(--line); border-radius: 12px; padding: 12px; height: 240px; overflow-y: auto; font-size: 13px; }
+.logline { padding: 4px 2px; border-bottom: 1px dashed #1e293b; line-height: 1.4; }
+.logline.hd { color: #fbbf24; font-weight: 600; }
+.logline.win { color: #4ade80; font-weight: 700; }
+.logline.lose { color: #f87171; font-weight: 600; }
+h3.section { margin: 18px 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+
+</style>
+</head>
+<body>
+  <header>
+    <h1>🤖 Build an AI — concept simulation</h1>
+    <p>A clickable prototype to test the board feel: pick a model, journey through the 7 build stages, make decisions, and try to launch a model that succeeds. Rivals are played by simple AI so you can watch the competition.</p>
+  </header>
+
+  <div class="wrap">
+    <!-- SETUP -->
+    <section id="setup">
+      <h2>Set up a game</h2>
+      <div class="field">
+        <label for="playerCount">Number of labs (players)</label>
+        <select id="playerCount">
+          <option value="2">2</option>
+          <option value="3" selected>3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="yourCategory">Your model category</label>
+        <select id="yourCategory"></select>
+      </div>
+      <div class="field">
+        <label for="rivalryToggle">Rivalry deck (direct attacks)</label>
+        <input type="checkbox" id="rivalryToggle" />
+        <span class="check">off = friendly · on = rivals can poach / out-bid / audit</span>
+      </div>
+      <button id="startBtn" class="btn">Start game</button>
+    </section>
+
+    <!-- GAME -->
+    <section id="game" class="hidden">
+      <h3 class="section">The build pipeline (board)</h3>
+      <div id="board"></div>
+
+      <div class="controls">
+        <button id="playBtn" class="btn">Take your turn</button>
+        <span id="turnInfo"></span>
+        <label class="check"><input type="checkbox" id="autoToggle" /> auto-play AI turns</label>
+        <button id="resetBtn" class="btn ghost">New game</button>
+      </div>
+
+      <div id="decision" class="hidden"></div>
+
+      <h3 class="section">Labs</h3>
+      <div id="players"></div>
+
+      <h3 class="section">Play-by-play</h3>
+      <div id="log"></div>
+    </section>
+  </div>
+
+  <script>
+/* =====================================================================
+   "Build an AI" — playable concept simulation
+   A single-file game engine (no dependencies) to test the board-game
+   concept: 7-stage pipeline, dice + decisions, AI rivals, win = launch
+   a model that SUCCEEDS in the market.
+   This is a DESIGN PROTOTYPE for feel/pacing, not the final product.
+   ===================================================================== */
+
+"use strict";
+
+/* ---------- Static design data ---------- */
+
+const SUCCESS_TARGET = 100; // market success points needed to win
+
+const ZONES = [
+  { key: "define",   name: "Define Project",      emoji: "🎯", color: "#6d28d9" },
+  { key: "data",     name: "Data Gathering",      emoji: "🗂️", color: "#2563eb" },
+  { key: "compute",  name: "Compute / Data Centre",emoji: "🖥️", color: "#0891b2" },
+  { key: "pretrain", name: "Pretraining",         emoji: "🏗️", color: "#059669" },
+  { key: "finetune", name: "Fine-Tuning",         emoji: "🎛️", color: "#ca8a04" },
+  { key: "testing",  name: "Testing & Eval",      emoji: "🧪", color: "#dc2626" },
+  { key: "market",   name: "Market / Launch",     emoji: "🚀", color: "#db2777" },
+];
+const MARKET_INDEX = ZONES.findIndex(z => z.key === "market");
+
+const CATEGORIES = {
+  generative: {
+    name: "Generative AI",
+    blurb: "Creates new content — chatbots/text, code, images, video, audio.",
+    methods: "Transformer (text/code/audio) · Diffusion or GAN (image/video)",
+    risk: "hallucination",
+  },
+  classifier: {
+    name: "Classifier",
+    blurb: "Recognises / sorts things — crop-disease detector, spam filter, X-ray reader.",
+    methods: "CNN / Vision Transformer · Gradient-boosted trees (tabular)",
+    risk: "bias",
+  },
+  predictive: {
+    name: "Predictive / Algorithmic",
+    blurb: "Predicts & ranks — recommendation engines (TikTok-style), credit scoring, forecasting.",
+    methods: "Collaborative filtering · Neural nets · Gradient boosting",
+    risk: "filterbubble",
+  },
+};
+
+/* Each decision option:
+   { title, blurb (the "card back" lesson), money (cost, negative),
+     quality, trust, addRisk:[], clearRisk:[], setAmbition }            */
+const DECISIONS = {
+  define: [
+    { title: "Lean MVP", blurb: "Aim small and cheap. Lower reward, but you reach the market fast.",
+      money: -2, quality: 0, trust: 0, setAmbition: 1 },
+    { title: "Standard product", blurb: "A balanced scope — moderate cost, moderate market reward.",
+      money: -5, quality: 0, trust: 0, setAmbition: 2 },
+    { title: "Frontier / ambitious", blurb: "Go big: highest market reward, but costly and slow.",
+      money: -9, quality: 0, trust: 0, setAmbition: 3 },
+  ],
+  data: [
+    { title: "License a clean dataset", blurb: "High-quality, rights-cleared data. Costs money but it's safe and strong.",
+      money: -6, quality: 22, trust: 6, addRisk: [] },
+    { title: "Scrape the web", blurb: "Cheap and fast, but noisy AND legally risky — copyright + bias can bite later.",
+      money: -2, quality: 12, trust: 0, addRisk: ["copyright", "bias"] },
+    { title: "Collect / crowdsource your own", blurb: "Slower, but tailored and high quality with fewer legal risks.",
+      money: -4, quality: 19, trust: 6, addRisk: [] },
+  ],
+  compute: [
+    { title: "Rent cloud (pay-as-you-go)", blurb: "Flexible, scales to any model size. Ongoing cost but no power worries.",
+      money: -5, quality: 6, trust: 0 },
+    { title: "Build your own data centre", blurb: "Cheaper long-run and fast — but ⚡ power cuts (NEPA) can stall you.",
+      money: -8, quality: 10, trust: 0, addRisk: ["power"] },
+    { title: "Use free grant credits", blurb: "Free, but limited — you might run out of compute mid-training.",
+      money: 0, quality: 3, trust: 0, addRisk: ["runout"] },
+  ],
+  pretrain: [
+    { title: "Transfer learning (start from a foundation model)", blurb: "The usual smart move: cheap, fast, and strong because you stand on existing work.",
+      money: -3, quality: 20, trust: 2 },
+    { title: "Train from scratch", blurb: "Full control and top quality IF your data + compute are big enough — expensive and slow.",
+      money: -8, quality: 26, trust: 0, addRisk: ["undertrained"] },
+    { title: "Cheap shortcut / wrong architecture", blurb: "Skimp on the method. Saves money now, but a poorly-matched model underperforms.",
+      money: -1, quality: 7, trust: -2, addRisk: ["wrongmethod"] },
+  ],
+  finetune: [
+    { title: "RLHF + safety alignment", blurb: "Tune with human feedback. Costly, but it aligns the model and cuts hallucination/bias.",
+      money: -5, quality: 9, trust: 20, clearRisk: ["hallucination", "bias", "filterbubble"] },
+    { title: "Full fine-tuning", blurb: "Strong task specialisation across the whole model. Powerful but pricey.",
+      money: -6, quality: 16, trust: 6 },
+    { title: "LoRA / lightweight tuning", blurb: "Efficient, cheap specialisation — tune a small adapter instead of everything.",
+      money: -2, quality: 11, trust: 4 },
+    { title: "Skip fine-tuning", blurb: "Ship the raw model. Free and fast, but it'll be rough and untrustworthy.",
+      money: 0, quality: 0, trust: -12, addRisk: ["hallucination"] },
+  ],
+  testing: [
+    { title: "Full eval + red-team + bias audit", blurb: "Thoroughly test for quality, safety and fairness before launch. Builds real trust.",
+      money: -5, quality: 6, trust: 16, clearRisk: ["untested", "bias", "hallucination", "filterbubble"] },
+    { title: "Basic benchmark only", blurb: "A quick accuracy check. Better than nothing, but misses safety & fairness issues.",
+      money: -2, quality: 3, trust: 6 },
+    { title: "Skip testing — rush to market", blurb: "Launch untested. Fastest path, but a public incident could be catastrophic.",
+      money: 0, quality: 0, trust: -6, addRisk: ["untested"] },
+  ],
+};
+
+/* Event cards. effect(player, game) mutates state and returns a log string. */
+const GOOD_EVENTS = [
+  { name: "Open-source breakthrough 🌟", fn: p => { p.quality += 8; return `${p.name}: an open-source breakthrough boosts quality (+8 ⭐).`; } },
+  { name: "Investor funding 💰", fn: p => { p.money += 8; return `${p.name}: lands investor funding (+8 ₦).`; } },
+  { name: "Viral demo 🚀", fn: p => { p.extraTurn = true; return `${p.name}: a viral demo earns an EXTRA turn!`; } },
+  { name: "Star researcher joins 🧑‍🔬", fn: p => { p.quality += 6; p.trust += 4; return `${p.name}: a star researcher joins (+6 ⭐, +4 🛡).`; } },
+];
+const BAD_EVENTS = [
+  { name: "NEPA power cut ⚡", fn: p => {
+      if (p.perks.includes("Generator")) return `${p.name}: power cut — but the Generator perk keeps training alive.`;
+      p.skipTurn = true; return `${p.name}: NEPA power cut — training stalls, SKIP next turn.`; } },
+  { name: "Data breach 🔓", fn: p => { p.trust -= 10; p.money -= 3; return `${p.name}: a data breach hits (−10 🛡, −3 ₦).`; } },
+  { name: "Copyright lawsuit ⚖️", fn: p => {
+      if (p.risks.has("copyright")) { p.money -= 8; p.setbackToData = true; return `${p.name}: copyright lawsuit over scraped data! (−8 ₦, sent back toward Data).`; }
+      return `${p.name}: a copyright scare — but their data was clean. No harm.`; } },
+  { name: "Hallucination scandal 🤥", fn: p => {
+      if (p.risks.has("hallucination") || p.risks.has("untested")) { p.trust -= 14; return `${p.name}: a hallucination scandal! (−14 🛡).`; }
+      return `${p.name}: a rumour of bad outputs — but testing held up. No harm.`; } },
+];
+const RIVALRY_EVENTS = [
+  { name: "Poach a rival researcher 🥷", fn: (p, g) => {
+      const r = randomRival(p, g); if (!r) return `${p.name}: no rival to poach from.`;
+      p.quality += 6; r.quality = Math.max(0, r.quality - 6);
+      return `${p.name}: poaches a researcher from ${r.name} (+6 ⭐ / −6 ⭐).`; } },
+  { name: "Out-bid for scarce data 💸", fn: (p, g) => {
+      const r = randomRival(p, g); if (!r) return `${p.name}: no rival to out-bid.`;
+      r.money -= 4; return `${p.name}: out-bids ${r.name} for scarce data (${r.name} −4 ₦).`; } },
+  { name: "Trigger an audit on the leader 🔍", fn: (p, g) => {
+      const leader = g.players.filter(x => x.status === "active" && x !== p).sort((a, b) => b.progress() - a.progress())[0];
+      if (!leader) return `${p.name}: no leader to audit.`;
+      leader.skipTurn = true; return `${p.name}: triggers a regulatory audit on ${leader.name} — they SKIP a turn.`; } },
+];
+
+/* ---------- Game state ---------- */
+
+let game = null;
+
+function makePlayer(id, name, catKey, isAI, personality) {
+  return {
+    id, name, catKey, isAI, personality, // personality: "careful" | "reckless"
+    money: 20, quality: 0, trust: 50, ambition: 2,
+    stageIndex: 0, status: "active", // active | launched | failed | won
+    success: 0, risks: new Set(), perks: [],
+    skipTurn: false, extraTurn: false, setbackToData: false,
+    color: ["#ef4444","#3b82f6","#10b981","#f59e0b","#8b5cf6"][id],
+    progress() { return this.stageIndex * 100 + (this.stageIndex >= MARKET_INDEX ? this.success : 0); },
+  };
+}
+
+function randomRival(p, g) {
+  const rivals = g.players.filter(x => x !== p && x.status === "active");
+  return rivals.length ? rivals[Math.floor(Math.random() * rivals.length)] : null;
+}
+
+/* ---------- Setup ---------- */
+
+function startGame() {
+  const count = parseInt(document.getElementById("playerCount").value, 10);
+  const yourCat = document.getElementById("yourCategory").value;
+  const rivalry = document.getElementById("rivalryToggle").checked;
+  const cats = Object.keys(CATEGORIES);
+  const players = [];
+  players.push(makePlayer(0, "You", yourCat, false, "careful"));
+  const names = ["Lagos Labs", "Sahara AI", "Naija Neural", "Kano Compute"];
+  for (let i = 1; i < count; i++) {
+    const cat = cats[Math.floor(Math.random() * cats.length)];
+    const personality = Math.random() < 0.5 ? "reckless" : "careful";
+    players.push(makePlayer(i, names[i - 1], cat, true, personality));
+  }
+  game = { players, current: 0, turn: 1, rivalry, over: false, pending: null, autorun: false };
+  log(`🎮 New game — ${count} players. Win by launching a model that succeeds in the market (${SUCCESS_TARGET} pts).`, "hd");
+  log(`You are building: ${CATEGORIES[yourCat].name}. Rivalry deck: ${rivalry ? "ON" : "off"}.`);
+  document.getElementById("setup").classList.add("hidden");
+  document.getElementById("game").classList.remove("hidden");
+  render();
+}
+
+/* ---------- Turn engine ---------- */
+
+function currentPlayer() { return game.players[game.current]; }
+
+function playTurn() {
+  if (game.over || game.pending) return;
+  const p = currentPlayer();
+  if (p.status !== "active") { endTurn(); return; }
+  if (p.skipTurn) { log(`⏸️ ${p.name} is delayed and skips this turn.`); p.skipTurn = false; endTurn(); return; }
+
+  const roll = 1 + Math.floor(Math.random() * 6);
+  p.money += roll; // income / time passing
+  log(`🎲 ${p.name} rolls a ${roll} (+${roll} ₦ income).`);
+
+  // Luck: extreme rolls draw an event
+  if (roll === 6) applyEvent(p, pick(GOOD_EVENTS));
+  else if (roll === 1) applyEvent(p, pick(BAD_EVENTS));
+  else if (game.rivalry && roll === 5 && p.isAI) applyEvent(p, pick(RIVALRY_EVENTS));
+
+  if (checkElimination(p)) { endTurn(); return; }
+
+  if (p.setbackToData) { p.setbackToData = false; p.stageIndex = Math.min(p.stageIndex, 1);
+    log(`⬅️ ${p.name} is sent back to the Data stage.`); }
+
+  if (p.stageIndex < MARKET_INDEX) {
+    const stage = ZONES[p.stageIndex];
+    const opts = getOptions(stage.key, p);
+    if (p.isAI) {
+      const choice = aiChoose(opts, p);
+      resolveOption(p, stage, opts[choice]);
+      endTurn();
+    } else {
+      game.pending = { player: p, stage, opts };
+      render(); // wait for the human to click an option
+    }
+  } else {
+    marketStep(p);
+    endTurn();
+  }
+}
+
+function chooseOption(idx) {
+  if (!game.pending) return;
+  const { player, stage, opts } = game.pending;
+  game.pending = null;
+  resolveOption(player, stage, opts[idx]);
+  endTurn();
+}
+
+function resolveOption(p, stage, opt) {
+  p.money += opt.money || 0;
+  p.quality = clamp(p.quality + (opt.quality || 0), 0, 200);
+  p.trust = clamp(p.trust + (opt.trust || 0), 0, 100);
+  if (opt.setAmbition) p.ambition = opt.setAmbition;
+  (opt.addRisk || []).forEach(r => p.risks.add(r));
+  (opt.clearRisk || []).forEach(r => p.risks.delete(r));
+  log(`${ZONES[p.stageIndex].emoji} ${p.name} — ${stage.name}: "${opt.title}" (${fmt(opt.money)}₦ ${fmt(opt.quality)}⭐ ${fmt(opt.trust)}🛡).`);
+
+  // category-specific signature risk appears at data stage if risky
+  if (stage.key === "data" && (opt.addRisk || []).length === 0) { /* clean data, fine */ }
+
+  p.stageIndex++;
+  if (p.stageIndex === MARKET_INDEX) {
+    log(`🚀 ${p.name} LAUNCHES! Quality ${p.quality}⭐, Trust ${p.trust}🛡. The market will now judge it…`, "hd");
+  }
+  checkElimination(p);
+}
+
+function marketStep(p) {
+  // success per turn scales with quality, trust and ambition; risks cause incidents
+  const base = (p.quality / 100) * (p.trust / 100);
+  let gain = Math.round(base * (8 + p.ambition * 4));
+  let note = "";
+  // unresolved risks can cause incidents in the market
+  for (const r of p.risks) {
+    if (Math.random() < 0.3) {
+      p.trust = clamp(p.trust - 12, 0, 100);
+      note += ` ⚠️ ${r} incident (−12 🛡).`;
+      gain = Math.max(0, gain - 4);
+    }
+  }
+  if (gain <= 0) { p.trust = clamp(p.trust - 4, 0, 100); note += " Product struggles to gain traction (market impatience, −4 🛡)."; }
+  p.success += Math.max(0, gain);
+  log(`📈 ${p.name} in market: +${Math.max(0,gain)} success (total ${p.success}/${SUCCESS_TARGET}).${note}`);
+  if (checkElimination(p)) return;
+  if (p.success >= SUCCESS_TARGET) {
+    p.status = "won"; game.over = true;
+    log(`🏆 ${p.name} reaches market success and WINS the game!`, "win");
+  }
+}
+
+function applyEvent(p, ev) { log(`🃏 Event — ${ev.fn(p, game)}`); }
+
+function checkElimination(p) {
+  if (p.status !== "active" && p.status !== "launched") return p.status === "failed";
+  if (p.trust <= 0) { p.status = "failed"; log(`💀 ${p.name}'s model collapsed (Trust hit 0) — knocked out.`, "lose"); }
+  else if (p.money < 0) { p.status = "failed"; log(`💀 ${p.name} ran out of money — knocked out.`, "lose"); }
+  if (p.status === "failed") { maybeEndByElimination(); return true; }
+  return false;
+}
+
+function maybeEndByElimination() {
+  const alive = game.players.filter(x => x.status === "active" || x.status === "launched" || x.status === "won");
+  if (alive.length === 1 && !game.over) {
+    alive[0].status = "won"; game.over = true;
+    log(`🏆 ${alive[0].name} is the last lab standing and WINS!`, "win");
+  }
+}
+
+function endTurn() {
+  render();
+  if (game.over) return;
+  const p = currentPlayer();
+  if (p.extraTurn) { p.extraTurn = false; log(`↗️ ${p.name} takes an extra turn.`); maybeAuto(); return; }
+  // advance to next active player
+  const prev = game.current;
+  let n = prev, guard = 0;
+  do { n = (n + 1) % game.players.length; guard++; }
+  while (game.players[n].status !== "active" && game.players[n].status !== "launched" && guard <= game.players.length);
+  if (n <= prev) game.turn++; // wrapped around → new round
+  game.current = n;
+  maybeAuto();
+}
+
+function maybeAuto() {
+  render();
+  if (game.over || game.pending) return;
+  if (game.autorun && currentPlayer().isAI) setTimeout(playTurn, 650);
+}
+
+/* ---------- Simple AI ---------- */
+
+function aiChoose(opts, p) {
+  // score each option; reckless AIs chase cheap/fast & ignore risk, careful AIs value quality+trust and avoid risk
+  let best = 0, bestScore = -1e9;
+  opts.forEach((o, i) => {
+    let s = (o.quality || 0) + (o.trust || 0) + (o.money || 0) * (p.personality === "reckless" ? 1.6 : 0.8);
+    const riskPenalty = (o.addRisk || []).length * (p.personality === "reckless" ? 2 : 14);
+    s -= riskPenalty;
+    s += (o.clearRisk || []).length * 6;
+    if (p.money + (o.money || 0) < 0) s -= 100; // can't go bankrupt on purpose
+    if (s > bestScore) { bestScore = s; best = i; }
+  });
+  return best;
+}
+
+/* ---------- Stage option provider ---------- */
+
+function getOptions(stageKey, p) {
+  // (room to make options category-specific later; foundation uses shared decks)
+  return DECISIONS[stageKey];
+}
+
+/* ---------- Rendering ---------- */
+
+function render() {
+  renderBoard();
+  renderPlayers();
+  renderControls();
+  renderDecision();
+}
+
+function renderBoard() {
+  const el = document.getElementById("board");
+  el.innerHTML = "";
+  ZONES.forEach((z, idx) => {
+    const station = document.createElement("div");
+    station.className = "station";
+    station.style.borderColor = z.color;
+    const tokens = game.players
+      .filter(p => p.stageIndex === idx && p.status !== "failed")
+      .map(p => `<span class="token" title="${p.name}" style="background:${p.color}">${p.id === 0 ? "★" : ""}</span>`)
+      .join("");
+    station.innerHTML = `<div class="station-h" style="color:${z.color}">${z.emoji} ${z.name}</div>
+      <div class="tokens">${tokens}</div>`;
+    el.appendChild(station);
+    if (idx < ZONES.length - 1) {
+      const arr = document.createElement("div"); arr.className = "arrow"; arr.textContent = "→"; el.appendChild(arr);
+    }
+  });
+}
+
+function renderPlayers() {
+  const el = document.getElementById("players");
+  el.innerHTML = "";
+  game.players.forEach(p => {
+    const isTurn = p === currentPlayer() && !game.over;
+    const card = document.createElement("div");
+    card.className = "pcard" + (isTurn ? " active" : "") + (p.status === "failed" ? " dead" : "") + (p.status === "won" ? " won" : "");
+    const risks = [...p.risks];
+    card.innerHTML = `
+      <div class="pcard-h"><span class="dot" style="background:${p.color}"></span>
+        <b>${p.name}</b> ${p.isAI ? `<span class="tag">${p.personality} AI</span>` : `<span class="tag you">you</span>`}</div>
+      <div class="cat">${CATEGORIES[p.catKey].name}</div>
+      <div class="stats">
+        <span>₦ ${p.money}</span><span>⭐ ${p.quality}</span><span>🛡 ${p.trust}</span>
+        ${p.stageIndex >= MARKET_INDEX ? `<span>📈 ${p.success}/${SUCCESS_TARGET}</span>` : ""}
+      </div>
+      <div class="stage">Stage: <b>${ZONES[p.stageIndex].name}</b>${p.status === "won" ? " 🏆" : p.status === "failed" ? " 💀" : ""}</div>
+      ${risks.length ? `<div class="risks">⚠️ ${risks.join(", ")}</div>` : ""}`;
+    el.appendChild(card);
+  });
+}
+
+function renderControls() {
+  const turnBtn = document.getElementById("playBtn");
+  const p = currentPlayer();
+  if (game.over) { turnBtn.disabled = true; turnBtn.textContent = "Game over"; }
+  else if (game.pending) { turnBtn.disabled = true; turnBtn.textContent = "Make your decision ↓"; }
+  else { turnBtn.disabled = false; turnBtn.textContent = p.isAI ? `▶ Play ${p.name}'s turn (AI)` : "🎲 Take your turn"; }
+  document.getElementById("turnInfo").textContent = game.over ? "" : `Turn ${game.turn} — ${p.name}'s move`;
+}
+
+function renderDecision() {
+  const el = document.getElementById("decision");
+  if (!game.pending) { el.classList.add("hidden"); el.innerHTML = ""; return; }
+  const { stage, opts, player } = game.pending;
+  el.classList.remove("hidden");
+  el.innerHTML = `<div class="decision-h">${ZONES[player.stageIndex].emoji} ${stage.name} — choose your move:</div>
+    <div class="opts">` +
+    opts.map((o, i) => `
+      <button class="opt" onclick="chooseOption(${i})">
+        <div class="opt-t">${o.title}</div>
+        <div class="opt-stats">${fmt(o.money)}₦ · ${fmt(o.quality)}⭐ · ${fmt(o.trust)}🛡 ${(o.addRisk&&o.addRisk.length)?`· ⚠️ ${o.addRisk.join("/")}`:""}</div>
+        <div class="opt-b">${o.blurb}</div>
+        <div class="opt-qr">ℹ️ printed card → QR to full lesson</div>
+      </button>`).join("") +
+    `</div>`;
+}
+
+/* ---------- Utilities ---------- */
+
+function log(msg, cls) {
+  const el = document.getElementById("log");
+  const line = document.createElement("div");
+  line.className = "logline" + (cls ? " " + cls : "");
+  line.textContent = msg;
+  el.prepend(line);
+}
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function fmt(n) { n = n || 0; return n > 0 ? "+" + n : "" + n; }
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+/* ---------- Wire up ---------- */
+
+window.addEventListener("DOMContentLoaded", () => {
+  // populate category dropdown
+  const sel = document.getElementById("yourCategory");
+  Object.entries(CATEGORIES).forEach(([k, v]) => {
+    const o = document.createElement("option"); o.value = k; o.textContent = v.name; sel.appendChild(o);
+  });
+  document.getElementById("startBtn").addEventListener("click", startGame);
+  document.getElementById("playBtn").addEventListener("click", playTurn);
+  document.getElementById("autoToggle").addEventListener("change", e => {
+    game.autorun = e.target.checked; maybeAuto();
+  });
+  document.getElementById("resetBtn").addEventListener("click", () => location.reload());
+});
+
+</script>
+</body>
+</html>
