@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Build an AI — concept simulation</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>🤖 Build an AI — concept simulation</h1>
+    <p>A clickable prototype to test the board feel: pick a model, journey through the 7 build stages, make decisions, and try to launch a model that succeeds. Rivals are played by simple AI so you can watch the competition.</p>
+  </header>
+
+  <div class="wrap">
+    <!-- SETUP -->
+    <section id="setup">
+      <h2>Set up a game</h2>
+      <div class="field">
+        <label for="playerCount">Number of labs (players)</label>
+        <select id="playerCount">
+          <option value="2">2</option>
+          <option value="3" selected>3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="yourCategory">Your model category</label>
+        <select id="yourCategory"></select>
+      </div>
+      <div class="field">
+        <label for="rivalryToggle">Rivalry deck (direct attacks)</label>
+        <input type="checkbox" id="rivalryToggle" />
+        <span class="check">off = friendly · on = rivals can poach / out-bid / audit</span>
+      </div>
+      <button id="startBtn" class="btn">Start game</button>
+    </section>
+
+    <!-- GAME -->
+    <section id="game" class="hidden">
+      <h3 class="section">The build pipeline (board)</h3>
+      <div id="board"></div>
+
+      <div class="controls">
+        <button id="playBtn" class="btn">Take your turn</button>
+        <span id="turnInfo"></span>
+        <label class="check"><input type="checkbox" id="autoToggle" /> auto-play AI turns</label>
+        <button id="resetBtn" class="btn ghost">New game</button>
+      </div>
+
+      <div id="decision" class="hidden"></div>
+
+      <h3 class="section">Labs</h3>
+      <div id="players"></div>
+
+      <h3 class="section">Play-by-play</h3>
+      <div id="log"></div>
+    </section>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
